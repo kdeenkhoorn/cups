@@ -1,0 +1,116 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  labels:
+    app: cups
+  name: cups-data-disk
+  namespace: cups
+spec:
+  claimRef:
+    name: cups-data-claim
+    namespace: cups
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 10Gi
+  hostPath:
+    path: /exports/cups
+  storageClassName: microk8s-hostpath
+---
+apiVersion: apps/v1
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  labels:
+    app: cups
+  name: cups-data-claim
+  namespace: cups
+spec:
+  volumeName: cups-data-disk
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cups
+  name: cups
+  namespace: cups
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cups
+  template:
+    metadata:
+      labels:
+        app: cups
+    spec:
+      restartPolicy: Always
+      hostNetwork: true
+      volumes:
+        - name: cups-data
+          persistentVolumeClaim:
+            claimName: cups-data-claim
+      containers:
+      - image: ghcr.io/kdeenkhoorn/cups:latest
+        name: cups
+        volumeMounts:
+        - name: cups-data
+          mountPath: /etc/cups
+        ports:
+        - name: ipp-port
+          containerPort: 631
+          protocol: TCP
+        - name: mdns-port
+          containerPort: 5353
+          protocol: UDP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cups-ingress
+  namespace: cups
+  annotations:
+    spec.ingressClassName: public
+    cert-manager.io/cluster-issuer: int-kdedesign-nl
+  labels:
+    app: cups
+spec:
+  tls:
+  - hosts:
+    - cups.int.kdedesign.nl
+    secretName: cups-tls-secret
+  rules:
+  - host: cups.int.kdedesign.nl
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: cups-service
+              port:
+                name: cups-http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cups
+  name: cups-service
+  namespace: cups
+spec:
+  ports:
+  - name: cups-http
+    port: 631
+    protocol: TCP
+    targetPort: ipp-port
+  selector:
+    app: cups
+
