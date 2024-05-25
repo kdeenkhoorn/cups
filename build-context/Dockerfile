@@ -1,4 +1,4 @@
-FROM ghcr.io/kdeenkhoorn/debian-stable-amd64:latest
+FROM docker.io/library/debian:stable-slim
 ENV DEBIAN_FRONTEND noninteractive
 COPY --chown=root:root ./entrypoint.sh /entrypoint.sh
 RUN apt-get update \

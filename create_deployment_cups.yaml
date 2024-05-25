@@ -60,6 +60,7 @@ spec:
       containers:
       - image: ghcr.io/kdeenkhoorn/cups:latest
         name: cups
+        imagePullPolicy: Always
         volumeMounts:
         - name: cups-data
           mountPath: /etc/cups
